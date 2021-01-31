@@ -6,7 +6,7 @@ import tensorflow as tf
 from collections.abc import Iterable
 
 '''
-Word-Onehot Encoder-Decoder
+Word-Onehot Encoder-Decoder class
 '''
 class NameCoder(object):
     def __init__(self, namelist):
@@ -64,12 +64,25 @@ class NameCoder(object):
         else:
             raise ValueError("Input should be either string, list of strings or 2D or 3D numpy array.")
 
-class NameInterface(object):
+    def coder_props(self):
+        coder_props = {}
+        coder_props["onehot_size"] = self.onehot_size
+        coder_props["max_word_size"] = self.max_word_size
+        coder_props["start_token"] = self.start_token
+        coder_props["end_token"] = self.end_token
+        coder_props["start_token"] = self.start_token
+        coder_props["chardict"] = self.chardict
+        coder_props["charlist"] = self.charlist
+        return coder_props
+'''
+Python Inference Interface class
+'''
+class InferenceInterface(object):
     def __init__(self, coder, model):
         self.coder = coder
         self.model = model
 
-    def generate(self, word_start, randomness_coefs):
+    def generate(self, word_start, randomness_coefs=[0]):
         word = self.coder.start_token + word_start
         for k in range(self.coder.max_word_size):
             new_letter = self.coder(model.predict(self.coder(word)), randomness_coefs=randomness_coefs)[len(word)-1]
@@ -80,17 +93,21 @@ class NameInterface(object):
         return word.replace(self.coder.start_token, "")
 
     def get_probs(self, word_start):
-        return model.predict(self.coder(word_start))[0, len(word_start)-1, :]
+        word = self.coder.start_token + word_start
+        return model.predict(self.coder(word))[0, len(word)-1, :]
 
     def plot_probs(self, word_start):
-        plt.bar(self.coder.charlist, self.get_probs(word_start))
+        word = self.coder.start_token + word_start
+        plt.bar(self.coder.charlist, self.get_probs(word))
         plt.show()
 
 '''
 Reading name dataset
 '''
+dataset_key = "slovak"
+datasets = {"slovak": "slovak_names.txt"}
 print("reading names")
-with open("slovak_names.txt", "r") as f:
+with open(datasets[dataset_key], "r") as f:
     namelist = f.read().split('\n')
 coder = NameCoder(namelist)
 
@@ -106,5 +123,19 @@ model = tf.keras.Model(inputs=input_layer, outputs=output_layer)
 model.compile(optimizer="adam", loss=tf.keras.losses.CategoricalCrossentropy())
 model.summary()
 
+'''
+Training, saving examining
+'''
+# training:
 model.fit(x=coder.train_data, y=coder.train_labels, epochs=100)
-ni = NameInterface(coder, model)
+
+# saving
+output_path="tmp/{}".format(dataset_key)
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
+model.save(os.path.join(output_path, "model.h5"))
+with open(os.path.join(output_path, "coder.json"), "w") as f:
+    json.dump(coder.coder_props(), f)
+
+# examining
+ii = InferenceInterface(coder, model)
