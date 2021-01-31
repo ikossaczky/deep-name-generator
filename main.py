@@ -1,7 +1,9 @@
 import os, sys, shutil, json, time
 import numpy as np
+import matplotlib.pyplot as plt
 # import pandas as pd
 import tensorflow as tf
+from collections.abc import Iterable
 
 '''
 Word-Onehot Encoder-Decoder
@@ -12,31 +14,51 @@ class NameCoder(object):
         self.charset = set()
         for char in "".join(self.namelist):
             self.charset.add(char)
-        self.charset.add("$")
+        self.start_token = "#"
+        self.end_token = "$"
+        self.charset.add(self.start_token)
+        self.charset.add(self.end_token)
+
         self.charlist = sorted(self.charset)
         self.chardict = {char: num for num, char in enumerate(self.charlist)}
         self.onehot_base = np.eye(len(self.chardict))[None, ...]
 
         self.onehot_size = len(self.charset)
-        self.max_word_size = max([len(name) for name in self.namelist])
+        self.max_word_size = max([len(name) for name in self.namelist]) + 1 # +1 for start token
 
-        self.train_data = self.__call__(self.namelist)
-        self.train_labels = self.__call__([x[1:] for x in self.namelist])
+        self.train_data = self.encode_or_decode([self.start_token + x for x in self.namelist])
+        self.train_labels = self.encode_or_decode(self.namelist)
+
+    def __call__(self, x, randomness_coefs=0):
+        return self.encode_or_decode(x, randomness_coefs=randomness_coefs)
 
     def encode(self, word):
-        word_ids = [self.chardict[char] for char in word.lower().ljust(self.max_word_size, "$")]
+        word_ids = [self.chardict[char] for char in word.lower().ljust(self.max_word_size, self.end_token)]
         return self.onehot_base[:, word_ids, :]
 
-    def decode(self, code):
-        return "".join([self.charlist[np.argmax(row)] for row in code[0]]) # taking first (0) batch element
+    def get_character(self, probabilities, randomness_coef=0):
+        if randomness_coef:
+            x = probabilities**(1/randomness_coef)
+            new_probs = x / x.sum()
+            return self.charlist[np.random.choice(np.arange(self.onehot_size), p=new_probs)]
+        else:
+            return self.charlist[np.argmax(probabilities)]
 
-    def __call__(self, x):
+    def decode(self, code, randomness_coefs=[0]):
+        if not isinstance(randomness_coefs, Iterable):
+            randomness_coefs = [randomness_coefs]*self.max_word_size
+        elif len(randomness_coefs)<self.max_word_size:
+            randomness_coefs = randomness_coefs + [randomness_coefs[-1]] * self.max_word_size
+        return "".join([self.get_character(row, randomness_coef=randomness_coefs[k])
+                        for k, row in enumerate(code[0])])  # taking first (0) batch element
+
+    def encode_or_decode(self, x, randomness_coefs=0):
         if isinstance(x, str):
             return self.encode(x)
         elif isinstance(x, np.ndarray) and len(x.shape)==3 and x.shape[0]==1:
-            return self.decode(x)
+            return self.decode(x, randomness_coefs=randomness_coefs)
         elif isinstance(x, np.ndarray) and len(x.shape)==3 and x.shape[0]>1:
-            return [self.decode(w[None,...]) for w in x]
+            return [self.decode(w[None,...], randomness_coefs=randomness_coefs) for w in x]
         elif isinstance(x, list):
             return np.concatenate([self.encode(w) for w in x], axis=0)
         else:
@@ -47,15 +69,22 @@ class NameInterface(object):
         self.coder = coder
         self.model = model
 
-    def extend(self, word_start):
-        word = word_start
-        for k in range(coder.max_word_size):
-            new_letter = coder(model.predict(coder(word)))[len(word)-1]
+    def generate(self, word_start, randomness_coefs):
+        word = self.coder.start_token + word_start
+        for k in range(self.coder.max_word_size):
+            new_letter = self.coder(model.predict(self.coder(word)), randomness_coefs=randomness_coefs)[len(word)-1]
             if new_letter != "$":
                 word = word + new_letter
             else:
                 break
-        return word
+        return word.replace(self.coder.start_token, "")
+
+    def get_probs(self, word_start):
+        return model.predict(self.coder(word_start))[0, len(word_start)-1, :]
+
+    def plot_probs(self, word_start):
+        plt.bar(self.coder.charlist, self.get_probs(word_start))
+        plt.show()
 
 '''
 Reading name dataset
@@ -77,6 +106,5 @@ model = tf.keras.Model(inputs=input_layer, outputs=output_layer)
 model.compile(optimizer="adam", loss=tf.keras.losses.CategoricalCrossentropy())
 model.summary()
 
-model.fit(x=coder.train_data, y=coder.train_labels, epochs=50)
-
+model.fit(x=coder.train_data, y=coder.train_labels, epochs=100)
 ni = NameInterface(coder, model)
