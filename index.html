@@ -58,14 +58,15 @@ async function loadModel(){
     }
 }
 // single character prediction function
-async function predict(wordstart, randomness){
+async function predict(){
+    var randomness = randomnessElem.value;
     var new_character;
-    var token_wordstart = coder_specs[models.active].start_token + wordstart
-    for (var k=0; k<coder_specs[models.active].max_word_size; k++){
+    var token_wordstart = coder_specs[models.active].start_token + wordStartElem.value
+    for (var k=0; k<coder_specs[models.active].max_word_size - wordStartElem.value.length; k++){
         var input_tensor = tf.tensor(encode(token_wordstart));
         var output_tensor = await models[models.active].predict(input_tensor);
-        var output_ar = await output_tensor.array()  ;
-        new_character = decodeCharacter(output_ar[0][wordstart.length], randomness);
+        var output_ar = await output_tensor.array();
+        new_character = decodeCharacter(output_ar[0][token_wordstart.length-1], randomness);
         if (new_character==coder_specs[models.active].end_token){
             break;
         }
@@ -73,24 +74,26 @@ async function predict(wordstart, randomness){
             token_wordstart=token_wordstart+new_character
         }
     }
-    output.value = token_wordstart.substring(1)
+    console.log(token_wordstart.substring(1))
+    outputElem.innerHTML = token_wordstart[1].toUpperCase() + token_wordstart.substring(2)
 }
 // word to one-hot encoding function
 function encode(word){
     const max_word_size = coder_specs[models.active].max_word_size
-    const one_hot_size = coder_specs[models.active].one_hot_size
+    const onehot_size = coder_specs[models.active].onehot_size
     const chardict = coder_specs[models.active].chardict
     var word = word.toLowerCase() + coder_specs[models.active].end_token.repeat(max_word_size-word.length)
-    var code= new Array(1).fill(new Array(max_word_size).fill(new Array(one_hot_size).fill(0.0)))
+    var code = [[]]
     for (var k=0; k<max_word_size; k++){
-        code[0][k][chardict[word[k]]] = 1.0
+        code[0][k]=new Array(onehot_size).fill(0.0)
+        code[0][k][chardict[word[k]]]=1.0
     }
     return code
 }
 // probability to character decoding function
 function decodeCharacter(probabilities, randomness){
     if (randomness>0.0){
-        var rescaled = probabilities.map( (x)=> {return x**1/randomness})
+        var rescaled = probabilities.map( (x)=> {return x**(1/randomness)})
         var norm_factor = rescaled.reduce((a, b) => a + b, 0)
         var new_probs = rescaled.map((x)=>x/norm_factor)
         var charnum = randomIntegerWithProbs(new_probs)
@@ -98,7 +101,6 @@ function decodeCharacter(probabilities, randomness){
     else{
         var charnum = argMax(probabilities) 
     }
-    var charnum = randomIntegerWithProbs(new_probs)
     return coder_specs[models.active].charlist[charnum]
 }
 // helper function for probability sampling
@@ -106,7 +108,7 @@ function randomIntegerWithProbs(probabilities){
     var cummulative_prob=0.0
     var num = 0
     var sampled_prob = Math.random()
-    for (prob of probabilities){
+    for (var prob of probabilities){
         cummulative_prob = cummulative_prob + prob
         if (sampled_prob <= cummulative_prob){
             return num
@@ -114,8 +116,8 @@ function randomIntegerWithProbs(probabilities){
         else {
             num++
         }
-        return probabilities.length -1 // just to be safe in case of rounding problems
     }
+    return probabilities.length -1 // just to be safe in case of rounding problems
 }
 // helper argmax function from https://gist.github.com/engelen/fbce4476c9e68c52ff7e5c2da5c24a28
 function argMax(array) {
