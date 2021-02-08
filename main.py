@@ -75,6 +75,7 @@ class NameCoder(object):
         coder_props["chardict"] = self.chardict
         coder_props["charlist"] = self.charlist
         return coder_props
+
 '''
 Python Inference Interface class
 '''
@@ -125,12 +126,13 @@ model.compile(optimizer="adam", loss=tf.keras.losses.CategoricalCrossentropy())
 model.summary()
 
 '''
-Training, saving examining
+Training
 '''
-# training:
-model.fit(x=coder.train_data, y=coder.train_labels, epochs=150)
+model.fit(x=coder.train_data, y=coder.train_labels, epochs=300)
 
-# saving
+'''
+Saving
+'''
 output_path="tmp/{}".format(dataset_key)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
@@ -146,8 +148,22 @@ with open(os.path.join(output_path, "model.json"), "w") as f:
 # save coder serialization properties
 with open(os.path.join(output_path, "coder.json"), "w") as f:
     json.dump(coder.coder_props(), f)
+# save picture of network structure
+tf.keras.utils.plot_model(
+    model,
+    to_file=os.path.join(output_path, "model.png"),
+    show_shapes=True,
+    show_dtype=False,
+    show_layer_names=False,
+    rankdir="TB",
+    expand_nested=True,
+    dpi=96,
+)
 
-# examining
+
+'''
+Examining
+'''
 ii = InferenceInterface(coder, model)
 
 # tensorflowjs_converter --input_format keras ./tmp/slovak/model.h5 ./tmp/slovak/

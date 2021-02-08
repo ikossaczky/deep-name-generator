@@ -31,6 +31,7 @@
 <input type="button" value="Generate!" id="generate" onclick=predict> 
 <br>
 <p id="output"></p>
+<img id="network_picture">
 
 <script>
 const wordStartElem = document.getElementById("word_start");
@@ -38,6 +39,7 @@ const randomnessElem = document.getElementById("randomness");
 const modelElem = document.getElementById("model")
 const generateElem = document.getElementById("generate")
 const outputElem = document.getElementById("output")
+const networkPictureElem = document.getElementById("network_picture")
 modelElem.addEventListener("change", loadModel)
 generateElem.addEventListener("click", predict)
 var models = {active: null};
@@ -56,6 +58,7 @@ async function loadModel(){
     else {
         generateElem.disabled = false
     }
+    networkPictureElem.src=model_path+model_name+"/model.png"
 }
 // single character prediction function
 async function predict(){
