@@ -57,18 +57,30 @@ async function loadModel(){
         generateElem.disabled = false
     }
 }
-// prediction function
-async function predict(){
-    // replace this loading by prediction!
-    var wordstart = coder_specs[models.active].start_token + wordStartElem.value
-    outputElem.innerHTML=loaded_model+modelElem.value+randomnessElem.value+wordStartElem.value
+// single character prediction function
+async function predict(wordstart, randomness){
+    var new_character;
+    var token_wordstart = coder_specs[models.active].start_token + wordstart
+    for (var k=0; k<coder_specs[models.active].max_word_size; k++){
+        var input_tensor = tf.tensor(encode(token_wordstart));
+        var output_tensor = await models[models.active].predict(input_tensor);
+        var output_ar = await output_tensor.array()  ;
+        new_character = decodeCharacter(output_ar[0][wordstart.length], randomness);
+        if (new_character==coder_specs[models.active].end_token){
+            break;
+        }
+        else{
+            token_wordstart=token_wordstart+new_character
+        }
+    }
+    output.value = token_wordstart.substring(1)
 }
 // word to one-hot encoding function
 function encode(word){
     const max_word_size = coder_specs[models.active].max_word_size
     const one_hot_size = coder_specs[models.active].one_hot_size
     const chardict = coder_specs[models.active].chardict
-    var word = word + coder_specs[models.active].end_token.repeat(max_word_size-word.length)
+    var word = word.toLowerCase() + coder_specs[models.active].end_token.repeat(max_word_size-word.length)
     var code= new Array(1).fill(new Array(max_word_size).fill(new Array(one_hot_size).fill(0.0)))
     for (var k=0; k<max_word_size; k++){
         code[0][k][chardict[word[k]]] = 1.0
