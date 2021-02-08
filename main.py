@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # import pandas as pd
 import tensorflow as tf
+import tensorflowjs as tfjs
 from collections.abc import Iterable
 
 '''
@@ -127,15 +128,26 @@ model.summary()
 Training, saving examining
 '''
 # training:
-model.fit(x=coder.train_data, y=coder.train_labels, epochs=100)
+model.fit(x=coder.train_data, y=coder.train_labels, epochs=150)
 
 # saving
 output_path="tmp/{}".format(dataset_key)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
+# save model in keras h5 format
 model.save(os.path.join(output_path, "model.h5"))
+# save model in tfjs format:
+tfjs.converters.save_keras_model(model, output_path)
+# fix a tfjs bug (https://github.com/tensorflow/tfjs/issues/3786)
+with open(os.path.join(output_path, "model.json"), "r") as f:
+    corrected = f.read().replace("Functional", "Model")
+with open(os.path.join(output_path, "model.json"), "w") as f:
+    f.write(corrected)
+# save coder serialization properties
 with open(os.path.join(output_path, "coder.json"), "w") as f:
     json.dump(coder.coder_props(), f)
 
 # examining
 ii = InferenceInterface(coder, model)
+
+# tensorflowjs_converter --input_format keras ./tmp/slovak/model.h5 ./tmp/slovak/
