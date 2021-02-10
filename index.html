@@ -1,37 +1,16 @@
 <!-- Loading tensorflow.js and jquery -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.1/dist/tf.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
-<!-- Model register and loading of coder specs -->
-<script>
-    var model_path = "http://raw.githubusercontent.com/ikossaczky/deep-name-generator/master/models/"
-    var coder_specs = {name: "coder_specs"};
-    registered_model_names=["slovak", "english", "german"];
-    // FIXME : coder specs loading somehow not working in this order....
-    for (model_name of registered_model_names) {
-        console.log("loading coder_specs for model "+model_name)
-        $.getJSON(model_path+model_name+"/coder.json",
-         function(data){
-            coder_specs[model_name]=data;
-            console.log("successfully loaded coder_specs for model "+model_name)
-        })
-    }
-</script>
-
 
 <!-- Web interface -->
 <label for="word_start">Name should start with:</label>
 <input type="text" id="word_start" name="word_start" minlength="0" maxlength="20" size="12">
 <br>
 <label for="randomness">Randomness coefficient (0-no randomness, >1: very random)</label>
-<input type="number" id="randomness" name="randomness" min="0" max="10" value=0.8 size=5, step=0.01>
+<input type="number" id="randomness" name="randomness" min="0" max="10" value=0.8 size=3, step=0.1>
 <br>
 <label for="model">Language model:</label>
-<select name="model" id="model">
-</select>
-<script>
-    for (model_name of registered_model_names)
-    document.getElementById('model').add(new Option(model_name, model_name))
-</script>
+<select name="model" id="model"></select>
 <br>
 <input type="button" value="Generate!" id="generate" onclick=predict> 
 <br>
@@ -39,23 +18,47 @@
 <img id="network_picture">
 
 <script>
+// get HTML elements
 const wordStartElem = document.getElementById("word_start");
 const randomnessElem = document.getElementById("randomness");
 const modelElem = document.getElementById("model")
 const generateElem = document.getElementById("generate")
 const outputElem = document.getElementById("output")
 const networkPictureElem = document.getElementById("network_picture")
+
+// initialization
+var model_path = "http://raw.githubusercontent.com/ikossaczky/deep-name-generator/master/models/"
+var models = {active: null};
+var coder_specs = {name: "coder_specs"};
+registered_model_names=[
+    "english-names", "english-places",
+    "german-names", "german-places",
+    "slovak-names", "slovak-places"];
+for (model_name of registered_model_names){
+    document.getElementById('model').add(new Option(model_name, model_name))
+}
 modelElem.addEventListener("change", loadModel)
 generateElem.addEventListener("click", predict)
-var models = {active: null};
+x=loadModel(modelElem.value)
+outputElem.innerHTML="-"
 
-// function for loading model
+// function for model loading
 async function loadModel(){
     model_name = modelElem.value
+    // set the model to be active
     models.active = model_name
+    // if model was not loaded yet, load it:
     if (!(model_name in models)){
-        console.log("loading model "+model_name)
         generateElem.disabled = true
+        // loading encoder-decoder specs
+        console.log("loading coder_specs for model "+model_name)
+        $.getJSON(model_path+model_name+"/coder.json",
+         function(data){
+            coder_specs[model_name]=data;
+            console.log("successfully loaded coder_specs for model "+model_name)
+        })
+        // loading tensorflow model
+        console.log("loading model "+model_name)
         var loaded_model = await tf.loadLayersModel(model_path+model_name+"/model.json")
         models[model_name] = loaded_model
         generateElem.disabled = false
@@ -131,9 +134,5 @@ function randomIntegerWithProbs(probabilities){
 function argMax(array) {
   return array.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0] ? a : r))[1];
 }
-
-// load the model
-x=loadModel(modelElem.value)
-outputElem.innerHTML=""
 </script>
 

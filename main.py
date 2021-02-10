@@ -106,8 +106,13 @@ class InferenceInterface(object):
 '''
 Reading name dataset
 '''
-dataset_key = "slovak"
-datasets = {"slovak": "slovak_names.txt"}
+dataset_key = "english-names"
+datasets = {"slovak-places": "datasets/slovak_places.txt",
+            "slovak-names": "datasets/slovak_names.txt",
+            "english-places": "datasets/english_places.txt",
+            "english-names": "datasets/english_names.txt",
+            "german-places": "datasets/german_places.txt",
+            "german-names": "datasets/german_names.txt"}
 print("reading names")
 with open(datasets[dataset_key], "r") as f:
     namelist = f.read().split('\n')
@@ -166,4 +171,4 @@ Examining
 '''
 ii = InferenceInterface(coder, model)
 
-# tensorflowjs_converter --input_format keras ./tmp/slovak/model.h5 ./tmp/slovak/
+# tensorflowjs_converter --input_format keras ./tmp/slovak-names/model.h5 ./tmp/slovak-names/
