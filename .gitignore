@@ -1,4 +1,6 @@
 .idea
 .vscode
+.ipynb_checkpoints
 tmp/*
 roadmap.txt
+helper.ipynb
