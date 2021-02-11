@@ -7,7 +7,7 @@ const outputElem = document.getElementById("output")
 const networkPictureElem = document.getElementById("network_picture")
 
 // initialization
-var model_path = "http://raw.githubusercontent.com/ikossaczky/deep-name-generator/master/models/"
+var model_path = "https://raw.githubusercontent.com/ikossaczky/deep-name-generator/master/models/"
 var models = {active: null};
 var coder_specs = {name: "coder_specs"};
 registered_model_names=[
